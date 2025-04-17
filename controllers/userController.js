@@ -238,8 +238,20 @@ exports.createAdminUser = async () => {
     if (!adminExists) {
       await User.create({
         username: 'admin',
-        email: process.env.ADMIN_EMAIL || 'admin@example.com',
-        password: process.env.ADMIN_PASSWORD || 'adminPassword123',
+        email: process.env.ADMIN_EMAIL || 'admin@leazzy.in',
+        password: process.env.ADMIN_PASSWORD || '123123123@123',
+        role: 'admin'
+      });
+      await User.create({
+        username: 'ashish',
+        email: process.env.ADMIN_EMAIL || 'ashish@leazzy.in',
+        password: process.env.ADMIN_PASSWORD || 'Rebook@123',
+        role: 'admin'
+      });
+      await User.create({
+        username: 'test',
+        email: process.env.ADMIN_EMAIL || 'test@leazzy.in',
+        password: process.env.ADMIN_PASSWORD || 'test@123',
         role: 'admin'
       });
       console.log('Admin user created successfully');

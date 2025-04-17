@@ -36,8 +36,19 @@ const emailSchema = new mongoose.Schema({
     type: String,
     unique: true,
     sparse: true
+  },
+  recipients: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  }],
+  isSent: {
+    type: Boolean,
+    default: false
   }
 });
+
+// Create index for faster searching
+emailSchema.index({ 'from.text': 'text', 'to.text': 'text', 'subject': 'text', 'text': 'text' });
 
 const Email = mongoose.model('Email', emailSchema);
 

@@ -22,6 +22,11 @@ body {
   box-shadow: 0 4px 8px rgba(0,0,0,0.1);
 }
 
+/* Admin Elements */
+.admin-only {
+  display: none; /* Hidden by default, will be shown for admin users via JS */
+}
+
 /* Authentication Forms */
 .card {
   box-shadow: 0 4px 8px rgba(0,0,0,0.1);
@@ -75,14 +80,29 @@ body {
   font-size: 1.1rem;
 }
 
+/* Email compose */
+#composeMessage {
+  resize: vertical;
+  min-height: 150px;
+}
+
+/* User management */
+.badge {
+  padding: 5px 8px;
+}
+
 /* Cursor pointer for interactive elements */
 .view-email, 
+.reset-password,
 .page-link,
 #showRegisterBtn,
 #showLoginBtn,
 #backToEmailsBtn,
 #logoutBtn,
 #emailsLink,
-#profileLink {
+#usersLink,
+#composeLink,
+#profileLink,
+#createUserBtn {
   cursor: pointer;
 } 

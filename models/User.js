@@ -24,9 +24,18 @@ const userSchema = new mongoose.Schema({
     enum: ['user', 'admin'],
     default: 'user'
   },
+  emails: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Email'
+  }],
   createdAt: {
     type: Date,
     default: Date.now
+  },
+  createdBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    default: null
   }
 });
 

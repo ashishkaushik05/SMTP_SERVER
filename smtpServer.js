@@ -2,6 +2,7 @@ const SMTPServer = require('smtp-server').SMTPServer;
 const streamToBuffer = require('stream-to-buffer');
 const { simpleParser } = require('mailparser');
 const Email = require('./models/Email');
+const User = require('./models/User');
 
 // Create SMTP server
 const server = new SMTPServer({
@@ -33,9 +34,46 @@ const server = new SMTPServer({
           messageId: email.messageId
         };
 
-        // Save to MongoDB using Mongoose model
-        const savedEmail = await Email.create(emailDoc);
-        console.log(`Email saved to MongoDB with ID: ${savedEmail._id}`);
+        // Find recipient users and associate email with them
+        const recipientEmails = [];
+        if (email.to && email.to.value) {
+          email.to.value.forEach(to => {
+            if (to.address) {
+              recipientEmails.push(to.address.toLowerCase());
+            }
+          });
+        }
+
+        if (recipientEmails.length > 0) {
+          const recipientUsers = await User.find({ 
+            email: { $in: recipientEmails } 
+          });
+
+          if (recipientUsers.length > 0) {
+            emailDoc.recipients = recipientUsers.map(user => user._id);
+
+            // Add email reference to each user
+            const savedEmail = await Email.create(emailDoc);
+            
+            // Update each recipient user
+            await Promise.all(recipientUsers.map(user => {
+              return User.findByIdAndUpdate(
+                user._id,
+                { $push: { emails: savedEmail._id } }
+              );
+            }));
+
+            console.log(`Email saved to MongoDB with ID: ${savedEmail._id} for ${recipientUsers.length} recipient users`);
+          } else {
+            // No registered users found as recipients, still save the email
+            const savedEmail = await Email.create(emailDoc);
+            console.log(`Email saved to MongoDB with ID: ${savedEmail._id} (no registered recipients)`);
+          }
+        } else {
+          // No recipients found in email, still save it
+          const savedEmail = await Email.create(emailDoc);
+          console.log(`Email saved to MongoDB with ID: ${savedEmail._id} (no recipients found in email)`);
+        }
 
         callback();
       } catch (error) {

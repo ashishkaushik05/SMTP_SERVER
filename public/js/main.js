@@ -11,6 +11,10 @@ const emailsView = document.getElementById('emailsView');
 const emailDetailView = document.getElementById('emailDetailView');
 const profileView = document.getElementById('profileView');
 const navbarNav = document.getElementById('navbarNav');
+const composeView = document.getElementById('composeView');
+const usersView = document.getElementById('usersView');
+const createUserModal = new bootstrap.Modal(document.getElementById('createUserModal'));
+const resetPasswordModal = new bootstrap.Modal(document.getElementById('resetPasswordModal'));
 
 // Event Listeners
 document.addEventListener('DOMContentLoaded', () => {
@@ -19,10 +23,13 @@ document.addEventListener('DOMContentLoaded', () => {
   // Form submissions
   document.getElementById('loginFormElement').addEventListener('submit', handleLogin);
   document.getElementById('registerFormElement').addEventListener('submit', handleRegister);
+  document.getElementById('composeForm').addEventListener('submit', handleSendEmail);
 
   // Navigation
   document.getElementById('emailsLink').addEventListener('click', showEmailsView);
   document.getElementById('profileLink').addEventListener('click', showProfileView);
+  document.getElementById('composeLink').addEventListener('click', showComposeView);
+  document.getElementById('usersLink').addEventListener('click', showUsersView);
   document.getElementById('logoutBtn').addEventListener('click', handleLogout);
   document.getElementById('showRegisterBtn').addEventListener('click', () => {
     loginForm.classList.add('d-none');
@@ -36,6 +43,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Email actions
   document.getElementById('searchBtn').addEventListener('click', searchEmails);
+
+  // User management
+  document.getElementById('createUserBtn').addEventListener('click', () => {
+    // Clear form
+    document.getElementById('newUsername').value = '';
+    document.getElementById('newEmail').value = '';
+    document.getElementById('newPassword').value = '';
+    document.getElementById('newRole').value = 'user';
+    document.getElementById('createUserError').classList.add('d-none');
+    
+    // Show modal
+    createUserModal.show();
+  });
+  
+  document.getElementById('submitCreateUser').addEventListener('click', handleCreateUser);
+  document.getElementById('submitResetPassword').addEventListener('click', handleResetPassword);
 });
 
 // Initialize the application
@@ -103,6 +126,7 @@ async function handleLogin(e) {
     currentUser = result.user;
     showEmailsView();
     loadEmails();
+    updateAdminUI();
   } catch (error) {
     errorEl.textContent = error.message;
     errorEl.classList.remove('d-none');
@@ -124,6 +148,7 @@ async function handleRegister(e) {
     currentUser = result.user;
     showEmailsView();
     loadEmails();
+    updateAdminUI();
   } catch (error) {
     errorEl.textContent = error.message;
     errorEl.classList.remove('d-none');
@@ -142,9 +167,62 @@ async function getCurrentUser() {
     const result = await apiCall('users/profile');
     currentUser = result.user;
     updateProfileView();
+    updateAdminUI();
   } catch (error) {
     console.error('Error fetching user profile:', error);
   }
+}
+
+async function handleCreateUser() {
+  const username = document.getElementById('newUsername').value;
+  const email = document.getElementById('newEmail').value;
+  const password = document.getElementById('newPassword').value;
+  const role = document.getElementById('newRole').value;
+  const errorEl = document.getElementById('createUserError');
+
+  try {
+    errorEl.classList.add('d-none');
+    await apiCall('users/create', 'POST', { 
+      username, 
+      email, 
+      password, 
+      role 
+    });
+    
+    createUserModal.hide();
+    loadUsers();
+  } catch (error) {
+    errorEl.textContent = error.message;
+    errorEl.classList.remove('d-none');
+  }
+}
+
+async function handleResetPassword() {
+  const userId = document.getElementById('resetUserId').value;
+  const newPassword = document.getElementById('newUserPassword').value;
+  const errorEl = document.getElementById('resetPasswordError');
+
+  try {
+    errorEl.classList.add('d-none');
+    await apiCall('users/reset-password', 'POST', { 
+      userId, 
+      newPassword 
+    });
+    
+    resetPasswordModal.hide();
+  } catch (error) {
+    errorEl.textContent = error.message;
+    errorEl.classList.remove('d-none');
+  }
+}
+
+function showResetPasswordModal(userId, userEmail) {
+  document.getElementById('resetUserId').value = userId;
+  document.getElementById('resetUserEmail').textContent = userEmail;
+  document.getElementById('newUserPassword').value = '';
+  document.getElementById('resetPasswordError').classList.add('d-none');
+  
+  resetPasswordModal.show();
 }
 
 // Email Actions
@@ -194,6 +272,89 @@ async function viewEmail(id) {
   }
 }
 
+async function handleSendEmail(e) {
+  e.preventDefault();
+  
+  const to = document.getElementById('composeTo').value;
+  const subject = document.getElementById('composeSubject').value;
+  const text = document.getElementById('composeMessage').value;
+  
+  const errorEl = document.getElementById('composeError');
+  const successEl = document.getElementById('composeSuccess');
+  
+  errorEl.classList.add('d-none');
+  successEl.classList.add('d-none');
+  
+  try {
+    await apiCall('emails/send', 'POST', {
+      to,
+      subject,
+      text
+    });
+    
+    // Clear form
+    document.getElementById('composeTo').value = '';
+    document.getElementById('composeSubject').value = '';
+    document.getElementById('composeMessage').value = '';
+    
+    // Show success message
+    successEl.textContent = 'Email sent successfully!';
+    successEl.classList.remove('d-none');
+    
+    // Hide success message after 3 seconds
+    setTimeout(() => {
+      successEl.classList.add('d-none');
+    }, 3000);
+  } catch (error) {
+    errorEl.textContent = error.message;
+    errorEl.classList.remove('d-none');
+  }
+}
+
+// User Management
+async function loadUsers() {
+  try {
+    const result = await apiCall('users/all');
+    displayUsers(result.users);
+  } catch (error) {
+    console.error('Error loading users:', error);
+  }
+}
+
+function displayUsers(users) {
+  const usersList = document.getElementById('usersList');
+  usersList.innerHTML = '';
+  
+  if (users.length === 0) {
+    usersList.innerHTML = '<tr><td colspan="5" class="text-center">No users found</td></tr>';
+    return;
+  }
+  
+  users.forEach(user => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${user.username}</td>
+      <td>${user.email}</td>
+      <td><span class="badge ${user.role === 'admin' ? 'bg-danger' : 'bg-primary'}">${user.role}</span></td>
+      <td>${new Date(user.createdAt).toLocaleString()}</td>
+      <td>
+        <button class="btn btn-sm btn-warning reset-password" data-id="${user._id}" data-email="${user.email}">
+          <i class="bi bi-key"></i> Reset Password
+        </button>
+      </td>
+    `;
+    
+    // Add event listener to reset password button
+    tr.querySelector('.reset-password').addEventListener('click', (e) => {
+      const userId = e.currentTarget.getAttribute('data-id');
+      const userEmail = e.currentTarget.getAttribute('data-email');
+      showResetPasswordModal(userId, userEmail);
+    });
+    
+    usersList.appendChild(tr);
+  });
+}
+
 // UI Functions
 function showLoginView() {
   loginForm.classList.remove('d-none');
@@ -201,6 +362,8 @@ function showLoginView() {
   emailsView.classList.add('d-none');
   emailDetailView.classList.add('d-none');
   profileView.classList.add('d-none');
+  composeView.classList.add('d-none');
+  usersView.classList.add('d-none');
   navbarNav.classList.add('d-none');
 }
 
@@ -212,6 +375,8 @@ function showEmailsView() {
   emailsView.classList.remove('d-none');
   emailDetailView.classList.add('d-none');
   profileView.classList.add('d-none');
+  composeView.classList.add('d-none');
+  usersView.classList.add('d-none');
   navbarNav.classList.remove('d-none');
   
   // Update active nav link
@@ -227,6 +392,8 @@ function showEmailDetailView() {
   emailsView.classList.add('d-none');
   emailDetailView.classList.remove('d-none');
   profileView.classList.add('d-none');
+  composeView.classList.add('d-none');
+  usersView.classList.add('d-none');
   navbarNav.classList.remove('d-none');
 }
 
@@ -238,6 +405,8 @@ function showProfileView() {
   emailsView.classList.add('d-none');
   emailDetailView.classList.add('d-none');
   profileView.classList.remove('d-none');
+  composeView.classList.add('d-none');
+  usersView.classList.add('d-none');
   navbarNav.classList.remove('d-none');
   
   // Update active nav link
@@ -245,6 +414,52 @@ function showProfileView() {
   document.getElementById('profileLink').classList.add('active');
   
   updateProfileView();
+}
+
+function showComposeView() {
+  if (!token) return showLoginView();
+  
+  loginForm.classList.add('d-none');
+  registerForm.classList.add('d-none');
+  emailsView.classList.add('d-none');
+  emailDetailView.classList.add('d-none');
+  profileView.classList.add('d-none');
+  composeView.classList.remove('d-none');
+  usersView.classList.add('d-none');
+  navbarNav.classList.remove('d-none');
+  
+  // Update active nav link
+  document.querySelectorAll('.nav-link').forEach(link => link.classList.remove('active'));
+  document.getElementById('composeLink').classList.add('active');
+}
+
+function showUsersView() {
+  if (!token || !currentUser || currentUser.role !== 'admin') return showEmailsView();
+  
+  loginForm.classList.add('d-none');
+  registerForm.classList.add('d-none');
+  emailsView.classList.add('d-none');
+  emailDetailView.classList.add('d-none');
+  profileView.classList.add('d-none');
+  composeView.classList.add('d-none');
+  usersView.classList.remove('d-none');
+  navbarNav.classList.remove('d-none');
+  
+  // Update active nav link
+  document.querySelectorAll('.nav-link').forEach(link => link.classList.remove('active'));
+  document.getElementById('usersLink').classList.add('active');
+  
+  loadUsers();
+}
+
+function updateAdminUI() {
+  const adminElements = document.querySelectorAll('.admin-only');
+  
+  if (currentUser && currentUser.role === 'admin') {
+    adminElements.forEach(el => el.classList.remove('d-none'));
+  } else {
+    adminElements.forEach(el => el.classList.add('d-none'));
+  }
 }
 
 function displayEmails(emails) {

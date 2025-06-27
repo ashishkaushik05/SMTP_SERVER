@@ -4,7 +4,8 @@ const {
   getEmails, 
   getEmailById, 
   searchEmails, 
-  sendEmail 
+  sendEmail,
+  deleteEmail 
 } = require('../controllers/emailController');
 const { protect, restrictTo } = require('../middleware/auth');
 
@@ -22,5 +23,8 @@ router.post('/send', sendEmail);
 
 // Get a single email by ID
 router.get('/:id', getEmailById);
+
+// Delete an email by ID
+router.delete('/:id', deleteEmail);
 
 module.exports = router; 

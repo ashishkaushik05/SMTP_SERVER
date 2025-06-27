@@ -219,4 +219,52 @@ exports.sendEmail = async (req, res) => {
       message: 'Server error sending email'
     });
   }
+};
+
+// Delete an email
+exports.deleteEmail = async (req, res) => {
+  try {
+    const email = await Email.findById(req.params.id)
+      .populate('recipients', 'username email');
+    
+    if (!email) {
+      return res.status(404).json({
+        success: false,
+        message: 'Email not found'
+      });
+    }
+    
+    // Check if user is admin or a recipient of the email
+    const isAuthorized = req.user.role === 'admin' || 
+      email.recipients.some(recipient => recipient._id.equals(req.user._id));
+    
+    if (!isAuthorized) {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized to delete this email'
+      });
+    }
+    
+    // Remove email reference from all recipient users
+    if (email.recipients && email.recipients.length > 0) {
+      await User.updateMany(
+        { _id: { $in: email.recipients.map(r => r._id) } },
+        { $pull: { emails: email._id } }
+      );
+    }
+    
+    // Delete the email from the database
+    await Email.findByIdAndDelete(req.params.id);
+    
+    res.json({
+      success: true,
+      message: 'Email deleted successfully'
+    });
+  } catch (error) {
+    console.error('Error deleting email:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error deleting email'
+    });
+  }
 }; 

@@ -224,9 +224,11 @@ exports.sendEmail = async (req, res) => {
 // Delete an email
 exports.deleteEmail = async (req, res) => {
   try {
+    // Find the email by ID and populate recipient information for authorization check
     const email = await Email.findById(req.params.id)
       .populate('recipients', 'username email');
     
+    // Return 404 if email doesn't exist
     if (!email) {
       return res.status(404).json({
         success: false,
@@ -234,7 +236,8 @@ exports.deleteEmail = async (req, res) => {
       });
     }
     
-    // Check if user is admin or a recipient of the email
+    // Authorization check: Only admin users or email recipients can delete emails
+    // This ensures data security by preventing unauthorized deletion
     const isAuthorized = req.user.role === 'admin' || 
       email.recipients.some(recipient => recipient._id.equals(req.user._id));
     
@@ -245,7 +248,8 @@ exports.deleteEmail = async (req, res) => {
       });
     }
     
-    // Remove email reference from all recipient users
+    // Clean up: Remove email reference from all recipient users' email arrays
+    // This maintains data integrity by removing orphaned references
     if (email.recipients && email.recipients.length > 0) {
       await User.updateMany(
         { _id: { $in: email.recipients.map(r => r._id) } },
@@ -253,14 +257,16 @@ exports.deleteEmail = async (req, res) => {
       );
     }
     
-    // Delete the email from the database
+    // Delete the email document from the database
     await Email.findByIdAndDelete(req.params.id);
     
+    // Return success response
     res.json({
       success: true,
       message: 'Email deleted successfully'
     });
   } catch (error) {
+    // Handle any server errors and return appropriate response
     console.error('Error deleting email:', error);
     res.status(500).json({
       success: false,

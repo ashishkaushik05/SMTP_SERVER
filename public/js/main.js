@@ -41,7 +41,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   document.getElementById('backToEmailsBtn').addEventListener('click', showEmailsView);
   
-  // Delete email button in detail view
+  // Delete email button in detail view - handles deletion with confirmation and navigation
   document.getElementById('deleteCurrentEmailBtn').addEventListener('click', () => {
     const emailId = document.getElementById('deleteCurrentEmailBtn').getAttribute('data-email-id');
     if (emailId) {
@@ -280,44 +280,52 @@ async function viewEmail(id) {
   }
 }
 
-// Delete an email with confirmation
+// Delete an email with user confirmation from the email list view
+// Displays confirmation dialog and handles success/error responses
 async function deleteEmail(id) {
-  // Show confirmation dialog
+  // Show confirmation dialog to prevent accidental deletions
   if (!confirm('Are you sure you want to delete this email? This action cannot be undone.')) {
     return;
   }
   
   try {
+    // Make DELETE API call to backend
     await apiCall(`emails/${id}`, 'DELETE');
     
-    // Show success message
+    // Show success feedback to user
     alert('Email deleted successfully!');
     
     // Reload the emails list to reflect the change
+    // Maintains current page to preserve user navigation state
     loadEmails(currentPage);
   } catch (error) {
+    // Handle and display error messages
     console.error('Error deleting email:', error);
     alert(`Failed to delete email: ${error.message}`);
   }
 }
 
 // Delete an email from detail view and return to email list
+// Similar to deleteEmail but navigates back to list after successful deletion
 async function deleteEmailAndReturnToList(id) {
-  // Show confirmation dialog
+  // Show confirmation dialog for user safety
   if (!confirm('Are you sure you want to delete this email? This action cannot be undone.')) {
     return;
   }
   
   try {
+    // Make DELETE API call to backend
     await apiCall(`emails/${id}`, 'DELETE');
     
-    // Show success message
+    // Show success feedback to user
     alert('Email deleted successfully!');
     
-    // Return to emails view and reload the list
+    // Navigate back to emails view and refresh the list
+    // This provides smooth user experience after deletion
     showEmailsView();
     loadEmails(currentPage);
   } catch (error) {
+    // Handle and display error messages
     console.error('Error deleting email:', error);
     alert(`Failed to delete email: ${error.message}`);
   }
@@ -525,19 +533,21 @@ function displayEmails(emails) {
   emails.forEach(email => {
     const tr = document.createElement('tr');
     
-    // Check if current user can delete this email (admin or recipient)
+    // Authorization check: Determine if current user can delete this email
+    // Users can delete emails if they are admin or a recipient of the email
     const canDelete = currentUser && (
       currentUser.role === 'admin' || 
       (email.recipients && email.recipients.some(recipient => recipient._id === currentUser._id))
     );
     
-    // Build action buttons
+    // Build action buttons - always include View button
     let actionButtons = `
       <button class="btn btn-sm btn-primary view-email me-1" data-id="${email._id}">
         <i class="bi bi-envelope-open"></i> View
       </button>
     `;
     
+    // Add Delete button only if user has permission
     if (canDelete) {
       actionButtons += `
         <button class="btn btn-sm btn-danger delete-email" data-id="${email._id}">
@@ -546,6 +556,7 @@ function displayEmails(emails) {
       `;
     }
     
+    // Create table row with email data and action buttons
     tr.innerHTML = `
       <td>${email.from && email.from.text ? email.from.text : 'Unknown'}</td>
       <td>${email.to && email.to.text ? email.to.text : 'Unknown'}</td>
@@ -580,17 +591,18 @@ function displayEmailDetails(email) {
   document.getElementById('emailDate').textContent = new Date(email.receivedAt).toLocaleString();
   document.getElementById('emailId').textContent = email.messageId || 'N/A';
   
-  // Check if current user can delete this email (admin or recipient)
+  // Authorization check: Determine if current user can delete this email
+  // Same logic as email list - admin or recipient can delete
   const canDelete = currentUser && (
     currentUser.role === 'admin' || 
     (email.recipients && email.recipients.some(recipient => recipient._id === currentUser._id))
   );
   
-  // Show/hide delete button based on permissions
+  // Show/hide delete button based on user permissions
   const deleteBtn = document.getElementById('deleteCurrentEmailBtn');
   if (canDelete) {
     deleteBtn.classList.remove('d-none');
-    // Store email ID for deletion
+    // Store email ID in button attribute for deletion handler
     deleteBtn.setAttribute('data-email-id', email._id);
   } else {
     deleteBtn.classList.add('d-none');
@@ -599,7 +611,7 @@ function displayEmailDetails(email) {
   // Display text content
   document.getElementById('emailText').textContent = email.text || 'No text content';
   
-  // Display HTML content
+  // Display HTML content in iframe for security
   const htmlFrame = document.getElementById('emailHtml');
   if (email.html) {
     const blob = new Blob([email.html], { type: 'text/html' });
@@ -608,7 +620,7 @@ function displayEmailDetails(email) {
     htmlFrame.srcdoc = '<p>No HTML content</p>';
   }
   
-  // Display attachments
+  // Display attachments section
   const attachmentsContainer = document.getElementById('emailAttachments');
   attachmentsContainer.innerHTML = '';
   
@@ -617,6 +629,7 @@ function displayEmailDetails(email) {
     return;
   }
   
+  // Create attachment cards for each attachment
   email.attachments.forEach(attachment => {
     const attachmentCard = document.createElement('div');
     attachmentCard.className = 'card attachment-card';

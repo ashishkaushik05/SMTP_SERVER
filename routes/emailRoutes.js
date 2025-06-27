@@ -24,7 +24,7 @@ router.post('/send', sendEmail);
 // Get a single email by ID
 router.get('/:id', getEmailById);
 
-// Delete an email by ID
+// Delete an email by ID - requires proper authorization (admin or recipient)
 router.delete('/:id', deleteEmail);
 
 module.exports = router; 
